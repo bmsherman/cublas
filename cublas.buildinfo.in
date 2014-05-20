@@ -1,0 +1,9 @@
+ghc-options: -optc@cuda_cppflags@
+cc-options: @cuda_cppflags@
+ld-options: @cuda_ldflags@
+x-extra-c2hs-options: @cuda_c2hsflags@
+
+include-dirs: @cuda_dir@
+extra-lib-dirs:  @cuda_lib_dir@
+
+cpp-options: -DCUDA_INCLUDE_DIR="@cuda_dir@"

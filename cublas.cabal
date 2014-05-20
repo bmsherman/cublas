@@ -1,0 +1,48 @@
+name:                   cublas
+version:                0.2.0.0
+synopsis:               FFI bindings to the CUDA CUBLAS and CUSPARSE libraries
+description:            FFI bindings to the NVIDIA CUDA CUBLAS and CUSPARSE
+                        linear algebra GPU BLAS implementations
+license:                BSD3
+license-file:           LICENSE
+author:                 Trevor L. McDonell, Ben Sherman
+maintainer:             Ben Sherman <benmsherman@gmail.com
+copyright:              Copyright (c) [2012..2014]. Trevor L. McDonell <tmcdonell@cse.unsw.edu.au>, Ben Sherman <benmsherman@gmail.com>
+category:               Foreign
+cabal-version:          >=1.8
+
+build-type:             Configure
+Extra-tmp-files:        cublas.buildinfo config.status config.log
+Extra-source-files:     configure
+                        configure.ac
+                        config.guess
+                        config.sub
+                        install-sh
+                        cublas.buildinfo.in
+
+library
+  exposed-modules:      Foreign.CUDA.Cublas
+                        Foreign.CUDA.Cublas.Error
+                        Foreign.CUDA.Cublas.Types
+                        Foreign.CUDA.Cublas.FFI
+                        Foreign.CUDA.Cusparse
+                        Foreign.CUDA.Cusparse.Error
+                        Foreign.CUDA.Cusparse.Types
+                        Foreign.CUDA.Cusparse.FFI
+
+  other-modules:        Foreign.CUDA.Cublas.TH
+       
+
+  build-depends:        base >=4.4 && <4.8,
+                        cuda >= 0.4.1,
+                        filepath == 1.3.*,
+                        parsec >= 3.1,
+                        language-c >= 0.4.2,
+                        template-haskell >= 2.7,
+                        storable-complex >= 0.2.1
+  other-extensions:     ForeignFunctionInterface, TemplateHaskell, CPP
+
+  build-tools:          c2hs >= 0.16
+  ghc-options:          -funbox-strict-fields -fwarn-tabs -fno-warn-name-shadowing
+  extra-libraries:      cublas, cusparse
+
