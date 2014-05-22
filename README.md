@@ -19,8 +19,9 @@ be performed. Its instances are `CFloat`, `CDouble`, `Complex CFloat`, and
 `Complex CDouble`. Similarly, there is a `Cusparse` typeclass which has
 the same instances.
 
-Use the Haddocs to see what functions are available!
+### Documentation
 
+[See the Haddock documentation](http://bmsherman.github.io/haddock/cublas/index.html).
 
 Installation
 ------------
