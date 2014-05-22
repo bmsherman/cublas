@@ -1,8 +1,11 @@
 cublas
 ======
 
-This Haskell library provides FFI bindings for both the CUBLAS and
-CUSPARSE CUDA C libraries. Template Haskell and language-c are used to 
+This Haskell library provides FFI bindings for both the
+[CUBLAS](https://developer.nvidia.com/cuBLAS) and
+[CUSPARSE](https://developer.nvidia.com/cuSPARSE)
+CUDA C libraries. Template Haskell and
+[language-c](http://hackage.haskell.org/package/language-c) are used to 
 automatically parse the C headers for the libraries and create the 
 proper FFI declarations.
 
@@ -23,7 +26,7 @@ Installation
 ------------
 
 First, CUDA and Autoconf should be installed. This has been tested with
-CUDA versions 5.5 and 6.0. Additionally, you may need
+CUDA version 6.0. Additionally, you may need
 to add some CUDA directories to your `PATH` and `LD_LIBRARY_PATH`
 environment variables.
 
