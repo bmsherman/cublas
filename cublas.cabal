@@ -52,3 +52,4 @@ source-repository head
 source-repository this
   Type:     git
   Location: git://github.com/bmsherman/cublas/releases/tag/0.2.0.0.git
+  Tag:      0.2.0.0
