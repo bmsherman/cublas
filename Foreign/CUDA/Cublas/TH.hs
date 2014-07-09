@@ -25,8 +25,6 @@ import Data.Complex (Complex(..))
 
 import System.FilePath.Posix ((</>))
 
-import qualified Text.Parsec as P
-
 import Foreign.CUDA as FC
 import qualified Foreign.CUDA.Runtime.Stream as FC
 
@@ -355,12 +353,6 @@ createf fp (name, ret, args) =
   f x y = [t| $(x) -> $(y) |]
 
 
-parse' :: P.Parsec String () a -> String -> Maybe a
-parse' p = \str -> case P.parse p "Unknown error" str of
-  Right x -> Just x
-  Left e -> Nothing
-
-
 sharedDecs :: String -> [CFunction] -> [(String, [(String, CFunction)])]
 sharedDecs prefix xs = xs'' where
   g x@(s,ret,args) = do
@@ -417,10 +409,14 @@ makeAllFuncs str fp = fmap concat . sequence . mapMaybe (fmap createf' . alter).
     return (fname, (newname, rettype, args))
 
 goodName :: String -> String -> Maybe String
-goodName prefix = parse' $ do
-    _ <- P.string prefix
-    (x:xs) <- P.manyTill P.anyChar (P.eof <|> void (P.try $ P.string "_v2"))
-    return (toLower x:xs)
+goodName prefix = f where
+  v2suff = "_v2"
+  l = length prefix
+  f str = if pre == prefix then Just (toLower x : xs) else Nothing
+    where
+    (pre, name) = splitAt l str
+    (name', v2) = splitAt (length name - length v2suff) name
+    (x : xs) = if v2 == v2suff then name' else name
 
 doIO :: IO (Q [a]) -> Q [a]
 doIO = join . runIO
