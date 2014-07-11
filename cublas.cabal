@@ -1,5 +1,5 @@
 name:                   cublas
-version:                0.2.0.0
+version:                0.2.0.1
 synopsis:               FFI bindings to the CUDA CUBLAS and CUSPARSE libraries
 description:            
   This package provides FFI bindings to the NVIDIA CUDA CUBLAS and CUSPARSE
@@ -17,7 +17,7 @@ copyright:              Copyright (c) [2012..2014]. Trevor L. McDonell <tmcdonel
 category:               Foreign
 cabal-version:          >=1.8
 
-build-type:             Configure
+build-type:             Custom
 Extra-tmp-files:        cublas.buildinfo config.status config.log
 Extra-source-files:     configure
                         configure.ac
@@ -57,5 +57,5 @@ source-repository head
 
 source-repository this
   Type:     git
-  Location: git://github.com/bmsherman/cublas/releases/tag/0.2.0.0.git
-  Tag:      0.2.0.0
+  Location: git://github.com/bmsherman/cublas/releases/tag/0.2.0.1.git
+  Tag:      0.2.0.1
