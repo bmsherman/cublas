@@ -1,6 +1,14 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE FlexibleInstances #-}
 
+{- |
+This module provides the most convenient FFI bindings to the CUSPARSE
+library. The names of functions and the role of arguments closely follows
+the CUSPARSE C API, which is documented here:
+
+<http://docs.nvidia.com/cuda/cusparse/>
+-}
+
 module Foreign.CUDA.Cusparse (
   -- * Types
   module Foreign.CUDA.Cusparse.Types,

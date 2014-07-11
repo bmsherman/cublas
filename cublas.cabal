@@ -1,8 +1,14 @@
 name:                   cublas
 version:                0.2.0.0
 synopsis:               FFI bindings to the CUDA CUBLAS and CUSPARSE libraries
-description:            FFI bindings to the NVIDIA CUDA CUBLAS and CUSPARSE
-                        linear algebra GPU BLAS implementations
+description:            
+  This package provides FFI bindings to the NVIDIA CUDA CUBLAS and CUSPARSE
+  linear algebra GPU BLAS implementations. The modules
+  @Foreign.CUDA.Cublas@ and @Foreign.CUDA.Cusparse@ are probably the most
+  useful.
+  .
+  If you have trouble installing this package, it may help to view this
+  webpage: <http://github.com/bmsherman/cublas>
 license:                BSD3
 license-file:           LICENSE
 author:                 Trevor L. McDonell, Ben Sherman
