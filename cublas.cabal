@@ -1,5 +1,5 @@
 name:                   cublas
-version:                0.2.0.1
+version:                0.2.0.2
 synopsis:               FFI bindings to the CUDA CUBLAS and CUSPARSE libraries
 description:            
   This package provides FFI bindings to the NVIDIA CUDA CUBLAS and CUSPARSE
@@ -10,6 +10,7 @@ description:
   If you have trouble installing this package, it may help to view this
   webpage: <http://github.com/bmsherman/cublas>
 license:                BSD3
+homepage:               https://github.com/bmsherman/cublas
 license-file:           LICENSE
 author:                 Trevor L. McDonell, Ben Sherman
 maintainer:             Ben Sherman <benmsherman@gmail.com>
@@ -57,5 +58,5 @@ source-repository head
 
 source-repository this
   Type:     git
-  Location: git://github.com/bmsherman/cublas/releases/tag/0.2.0.1.git
-  Tag:      0.2.0.1
+  Location: git://github.com/bmsherman/cublas/releases/tag/0.2.0.2.git
+  Tag:      0.2.0.2

@@ -151,9 +151,9 @@ inT (ArrC t) = inT' (typeDat t) where
   inT' (TD ct hst c2hs (hs2c,purity)) = TI
     (pointerify ct)
     (convertT [t| [ $(hst) ] |] exp)
-    (Just (destroyT [| F.free |]))
+    (Just (destroyT [| FC.free . FC.DevicePtr |]))
     where
-    exp = case purity of Pure -> [| F.newArray . map $(hs2c) |] ; Monadic -> undefined
+    exp = case purity of Pure -> [| fmap FC.useDevicePtr . FC.newListArray . map $(hs2c) |] ; Monadic -> undefined
 
 outT :: TypeC -> TypeInfo
 outT (PtrC t) = outT' (typeDat t) where
