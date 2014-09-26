@@ -7,6 +7,7 @@ module Foreign.CUDA.Cusparse.Types (
   Handle(..), HybMat(..), MatDescr(..),
   Csrsv2Info(..), Csric02Info (..), Csrilu02Info (..),
   Bsrsv2Info(..), Bsric02Info (..), Bsrilu02Info (..),
+  Bsrsm2Info(..),
   SolvePolicy (..),  SolveAnalysisInfo(..),
   Operation(..), Status(..),
   Action(..), Direction(..), FillMode(..), PointerMode(..), DiagType(..),
@@ -34,6 +35,7 @@ newtype Csrilu02Info = Csrilu02Info { useCsrilu02Info :: {# type csrilu02Info_t 
 newtype Bsrsv2Info = Bsrsv2Info { useBsrsv2Info :: {# type bsrsv2Info_t #}}
 newtype Bsric02Info = Bsric02Info { useBsric02Info :: {# type bsric02Info_t #}}
 newtype Bsrilu02Info = Bsrilu02Info { useBsrilu02Info :: {# type bsrilu02Info_t #}}
+newtype Bsrsm2Info = Bsrsm2Info { useBsrsm2Info :: {# type bsrsm2Info_t #}}
 
 newtype SolveAnalysisInfo = SolveAnalysisInfo { useSolveAnalysisInfo :: {# type cusparseSolveAnalysisInfo_t #}}
 

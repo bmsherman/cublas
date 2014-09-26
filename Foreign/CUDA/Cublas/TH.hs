@@ -108,6 +108,7 @@ typeDat (ArbStructC str) = case str of
   "bsrsv2Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrsv2Info |] [| SP.Bsrsv2Info |] [| SP.useBsrsv2Info |]
   "bsric02Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsric02Info |] [| SP.Bsric02Info |] [| SP.useBsric02Info |]
   "bsrilu02Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrilu02Info |] [| SP.Bsrilu02Info |] [| SP.useBsrilu02Info |]
+  "bsrsm2Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrsm2Info |] [| SP.Bsrsm2Info |] [| SP.useBsrsm2Info |]
 
   "cudaStream_t" -> prim [t| F.Ptr () |] [t| FC.Stream |] [| FC.Stream |] [| FC.useStream |]
 typeDat (ComplexC t) = prim
@@ -187,7 +188,7 @@ convert (CDoubleType _) = DoubleC
 --CBoolType a	 
 --CComplexType a
 convert (CTypeDef ident _) = try 
-  [ (s `elem` ["cublasHandle_t", "cusparseHybMat_t", "cusparseHandle_t", "cusparseMatDescr_t", "cusparseSolveAnalysisInfo_t", "cudaStream_t", "csrsv2Info_t", "csric02Info_t", "csrilu02Info_t", "bsrsv2Info_t", "bsric02Info_t", "bsrilu02Info_t" ] , ArbStructC s)
+  [ (s `elem` ["cublasHandle_t", "cusparseHybMat_t", "cusparseHandle_t", "cusparseMatDescr_t", "cusparseSolveAnalysisInfo_t", "cudaStream_t", "csrsv2Info_t", "csric02Info_t", "csrilu02Info_t", "bsrsv2Info_t", "bsric02Info_t", "bsrilu02Info_t", "bsrsm2Info_t" ] , ArbStructC s)
   , (s=="cuComplex", ComplexC FloatC)
   , (s=="cuDoubleComplex", ComplexC DoubleC)
   , (True, EnumC s) ]

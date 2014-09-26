@@ -1,5 +1,5 @@
 name:                   cublas
-version:                0.2.0.2
+version:                0.2.1.0
 synopsis:               FFI bindings to the CUDA CUBLAS and CUSPARSE libraries
 description:            
   This package provides FFI bindings to the NVIDIA CUDA CUBLAS and CUSPARSE
