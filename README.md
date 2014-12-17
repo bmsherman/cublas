@@ -26,8 +26,8 @@ the same instances.
 Installation
 ------------
 
-First, CUDA and Autoconf should be installed. This has been tested with
-CUDA version 6.0. Additionally, you may need
+First, CUDA and Autoconf should be installed. cublas-0.2.1.0 has been 
+tested with CUDA version 6.5. Additionally, you may need
 to add some CUDA directories to your `PATH` and `LD_LIBRARY_PATH`
 environment variables.
 
@@ -42,3 +42,12 @@ cabal configure
 cabal install
 ```
 
+Note: in order for installation to work properly, `nvcc` must be found on 
+the PATH, and if the `nvcc` on the PATH has directory structure
+```
+/foo/bar/baz/nvcc
+```
+, then header files such as `cublas.h` should be found in
+```
+/foo/bar/include/cublas.h
+```

@@ -7,8 +7,11 @@ description:
   @Foreign.CUDA.Cublas@ and @Foreign.CUDA.Cusparse@ are probably the most
   useful.
   .
-  If you have trouble installing this package, it may help to view this
-  webpage: <http://github.com/bmsherman/cublas>
+  Requires CUDA version 6.5.
+  .
+  If you have trouble installing this package, it may help to view the Github
+  page: <http://github.com/bmsherman/cublas>
+  .
 license:                BSD3
 homepage:               https://github.com/bmsherman/cublas
 license-file:           LICENSE
@@ -58,5 +61,5 @@ source-repository head
 
 source-repository this
   Type:     git
-  Location: git://github.com/bmsherman/cublas/releases/tag/0.2.0.2.git
-  Tag:      0.2.0.2
+  Location: git://github.com/bmsherman/cublas/releases/tag/0.2.1.0.git
+  Tag:      0.2.1.0
