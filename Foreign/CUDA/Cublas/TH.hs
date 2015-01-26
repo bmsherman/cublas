@@ -13,8 +13,9 @@ import Language.Haskell.TH as TH
 import Language.C
 import Language.C.System.GCC
 
-import Data.List (isInfixOf, isPrefixOf, isSuffixOf)
+import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nubBy)
 import Data.Char (toLower, toUpper)
+import Data.Function (on)
 import Data.Maybe (mapMaybe)
 
 import Debug.Trace
@@ -102,6 +103,7 @@ typeDat (ArbStructC str) = case str of
   "cusparseHybMat_t" -> prim [t| F.Ptr () |] [t| SP.HybMat |] [| SP.HybMat |]  [| SP.useHybMat |]
   "cusparseMatDescr_t" -> prim [t| F.Ptr () |] [t| SP.MatDescr |] [| SP.MatDescr |]  [| SP.useMatDescr |]
   "cusparseSolveAnalysisInfo_t" -> prim [t| F.Ptr () |] [t| SP.SolveAnalysisInfo |] [| SP.SolveAnalysisInfo |]  [| SP.useSolveAnalysisInfo |]
+  "cusparseColorInfo_t" -> prim [t| F.Ptr () |] [t| SP.ColorInfo |] [| SP.ColorInfo |] [| SP.useColorInfo |]
   "csrsv2Info_t" -> prim [t| F.Ptr () |] [t| SP.Csrsv2Info |] [| SP.Csrsv2Info |] [| SP.useCsrsv2Info |]
   "csric02Info_t" -> prim [t| F.Ptr () |] [t| SP.Csric02Info |] [| SP.Csric02Info |] [| SP.useCsric02Info |]
   "csrilu02Info_t" -> prim [t| F.Ptr () |] [t| SP.Csrilu02Info |] [| SP.Csrilu02Info |] [| SP.useCsrilu02Info |]
@@ -109,6 +111,8 @@ typeDat (ArbStructC str) = case str of
   "bsric02Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsric02Info |] [| SP.Bsric02Info |] [| SP.useBsric02Info |]
   "bsrilu02Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrilu02Info |] [| SP.Bsrilu02Info |] [| SP.useBsrilu02Info |]
   "bsrsm2Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrsm2Info |] [| SP.Bsrsm2Info |] [| SP.useBsrsm2Info |]
+  "csru2csrInfo_t" -> prim [t| F.Ptr () |] [t| SP.Csru2csrInfo |] [| SP.Csru2csrInfo |] [| SP.useCsru2csrInfo |]
+  "csrgemm2Info_t" -> prim [t| F.Ptr () |] [t| SP.Csrgemm2Info |] [| SP.Csrgemm2Info |] [| SP.useCsrgemm2Info |]
 
   "cudaStream_t" -> prim [t| F.Ptr () |] [t| FC.Stream |] [| FC.Stream |] [| FC.useStream |]
 typeDat (ComplexC t) = prim
@@ -188,7 +192,7 @@ convert (CDoubleType _) = DoubleC
 --CBoolType a	 
 --CComplexType a
 convert (CTypeDef ident _) = try 
-  [ (s `elem` ["cublasHandle_t", "cusparseHybMat_t", "cusparseHandle_t", "cusparseMatDescr_t", "cusparseSolveAnalysisInfo_t", "cudaStream_t", "csrsv2Info_t", "csric02Info_t", "csrilu02Info_t", "bsrsv2Info_t", "bsric02Info_t", "bsrilu02Info_t", "bsrsm2Info_t" ] , ArbStructC s)
+  [ (s `elem` ["cublasHandle_t", "cusparseHybMat_t", "cusparseHandle_t", "cusparseMatDescr_t", "cusparseSolveAnalysisInfo_t", "cudaStream_t", "csrsv2Info_t", "csric02Info_t", "csrilu02Info_t", "bsrsv2Info_t", "bsric02Info_t", "bsrilu02Info_t", "bsrsm2Info_t", "csru2csrInfo_t", "cusparseColorInfo_t", "csrgemm2Info_t" ] , ArbStructC s)
   , (s=="cuComplex", ComplexC FloatC)
   , (s=="cuDoubleComplex", ComplexC DoubleC)
   , (True, EnumC s) ]
@@ -228,7 +232,8 @@ typeInfo fn (n, typec) = ($ typec) $ try
       , inT)
   , (n `elem` ["alpha", "beta", "a", "b", "c", "d1", "d2", "x1", "y1", "s"]
       , inT)
-  , ( "create" `isPrefixOf` fn || n == "result"
+  , ( ("create" `isPrefixOf` fn && not (fn == "createIdentityPermutation")) 
+       || n == "result"
       , outT)
     {- CuSPARSE -}
   , ("DevHostPtr" `isSuffixOf` n
@@ -310,7 +315,8 @@ funname _ = "Weird!"
 
 desired :: String -> CFunction -> Bool
 desired prefix (name, _, _) = 
-    any (`isPrefixOf` name) $ map (prefix ++) ("Get" : map (:[]) "SDCZX")
+    any (`isPrefixOf` name) (map (prefix ++) ("Get" : map (:[]) "SDCZX"))
+    && not ("color" `isSuffixOf` name)
 
 infol :: Show a =>  CDerivedDeclarator a -> Maybe [[String]]
 infol (CFunDeclr (Right (ys,_)) _ _) = Just $ map f ys where
@@ -397,14 +403,21 @@ typeMap _ = error "typeMap: Invalid character"
 
 makeClassDecs :: String -> FilePath -> IO (Q [Dec])
 makeClassDecs str fp = do
-  sds <- sharedDecs str <$> getFunctions fp
+  sds <- sharedDecs str <$> getDesiredFunctions str fp
   return $ sequence (mkClass str (map (snd . head . snd) sds) : mkClassInstances str sds)
 
 makeFFIDecs :: String -> FilePath -> IO (Q [Dec])
-makeFFIDecs str fp = sequence . map (createf fp) . filter (desired str) <$> getFunctions fp
+makeFFIDecs str fp = sequence . map (createf fp) <$> getDesiredFunctions str fp
+
+getDesiredFunctions :: String -> FilePath -> IO [CFunction]
+getDesiredFunctions str fp = 
+  nubBy ((==) `on` functionName) . filter (desired str) <$> getFunctions fp
+  where
+  functionName (fname, rettype, args) = fname
 
 makeAllFuncs :: String -> FilePath -> IO (Q [Dec])
-makeAllFuncs str fp = fmap concat . sequence . mapMaybe (fmap createf' . alter). filter (desired str) <$> getFunctions fp where
+makeAllFuncs str fp = fmap concat . sequence . mapMaybe (fmap createf' . alter)
+  <$> getDesiredFunctions str fp where
   alter (fname, rettype, args) = do
     newname <- goodName str fname
     return (fname, (newname, rettype, args))

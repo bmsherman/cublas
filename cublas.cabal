@@ -7,7 +7,7 @@ description:
   @Foreign.CUDA.Cublas@ and @Foreign.CUDA.Cusparse@ are probably the most
   useful.
   .
-  Requires CUDA version 6.5.
+  Requires CUDA version 7.0.
   .
   If you have trouble installing this package, it may help to view the Github
   page: <http://github.com/bmsherman/cublas>
