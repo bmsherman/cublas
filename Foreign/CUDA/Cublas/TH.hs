@@ -1,11 +1,16 @@
-{-# LANGUAGE CPP #-}
+
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
-module Foreign.CUDA.Cublas.TH where
+module Foreign.CUDA.Cublas.TH (
+  module Foreign.CUDA.Cublas.TH,
+  module Foreign.CUDA.Cublas.THBase ) where
+
+import Foreign.CUDA.Cublas.THBase
+
 import Control.Applicative
 import Control.Arrow
-import Control.Monad ((>=>), join, void)
+import Control.Monad ((>=>), void)
 
 import GHC.Exts (groupWith)
 
@@ -13,10 +18,10 @@ import Language.Haskell.TH as TH
 import Language.C
 import Language.C.System.GCC
 
-import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nubBy)
+import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nubBy, stripPrefix)
 import Data.Char (toLower, toUpper)
 import Data.Function (on)
-import Data.Maybe (mapMaybe)
+import Data.Maybe (mapMaybe, fromMaybe)
 
 import Debug.Trace
 import qualified Foreign.C.Types as C
@@ -24,7 +29,7 @@ import qualified Foreign as F
 import Foreign.Storable.Complex ()
 import Data.Complex (Complex(..))
 
-import System.FilePath.Posix ((</>))
+
 
 import Foreign.CUDA as FC
 import qualified Foreign.CUDA.Runtime.Stream as FC
@@ -98,23 +103,11 @@ typeDat (EnumC str) = prim [t| C.CInt |] x [| toEnum . fromIntegral |] [| fromIn
 
     otherwise -> error ("typeDat.EnumC : Missing type: " ++ str)
 typeDat (ArbStructC str) = case str of
+  "cudaStream_t" -> prim [t| F.Ptr () |] [t| FC.Stream |] [| FC.Stream |] [| FC.useStream |]
   "cublasHandle_t" -> prim [t| F.Ptr () |] [t| BL.Handle |] [| BL.Handle |]  [| BL.useHandle |]
   "cusparseHandle_t" -> prim [t| F.Ptr () |] [t| SP.Handle |] [| SP.Handle |]  [| SP.useHandle |]
-  "cusparseHybMat_t" -> prim [t| F.Ptr () |] [t| SP.HybMat |] [| SP.HybMat |]  [| SP.useHybMat |]
-  "cusparseMatDescr_t" -> prim [t| F.Ptr () |] [t| SP.MatDescr |] [| SP.MatDescr |]  [| SP.useMatDescr |]
-  "cusparseSolveAnalysisInfo_t" -> prim [t| F.Ptr () |] [t| SP.SolveAnalysisInfo |] [| SP.SolveAnalysisInfo |]  [| SP.useSolveAnalysisInfo |]
-  "cusparseColorInfo_t" -> prim [t| F.Ptr () |] [t| SP.ColorInfo |] [| SP.ColorInfo |] [| SP.useColorInfo |]
-  "csrsv2Info_t" -> prim [t| F.Ptr () |] [t| SP.Csrsv2Info |] [| SP.Csrsv2Info |] [| SP.useCsrsv2Info |]
-  "csric02Info_t" -> prim [t| F.Ptr () |] [t| SP.Csric02Info |] [| SP.Csric02Info |] [| SP.useCsric02Info |]
-  "csrilu02Info_t" -> prim [t| F.Ptr () |] [t| SP.Csrilu02Info |] [| SP.Csrilu02Info |] [| SP.useCsrilu02Info |]
-  "bsrsv2Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrsv2Info |] [| SP.Bsrsv2Info |] [| SP.useBsrsv2Info |]
-  "bsric02Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsric02Info |] [| SP.Bsric02Info |] [| SP.useBsric02Info |]
-  "bsrilu02Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrilu02Info |] [| SP.Bsrilu02Info |] [| SP.useBsrilu02Info |]
-  "bsrsm2Info_t" -> prim [t| F.Ptr () |] [t| SP.Bsrsm2Info |] [| SP.Bsrsm2Info |] [| SP.useBsrsm2Info |]
-  "csru2csrInfo_t" -> prim [t| F.Ptr () |] [t| SP.Csru2csrInfo |] [| SP.Csru2csrInfo |] [| SP.useCsru2csrInfo |]
-  "csrgemm2Info_t" -> prim [t| F.Ptr () |] [t| SP.Csrgemm2Info |] [| SP.Csrgemm2Info |] [| SP.useCsrgemm2Info |]
-
-  "cudaStream_t" -> prim [t| F.Ptr () |] [t| FC.Stream |] [| FC.Stream |] [| FC.useStream |]
+  _ -> let tyName = typeDefTyName str; useName = typeDefUseName str in
+       prim [t| F.Ptr () |] (conT tyName) (conE tyName) (varE useName)
 typeDat (ComplexC t) = prim
   [t| Complex $(ctype) |]
   [t| Complex $(hstype) |]
@@ -179,35 +172,38 @@ inOutT (PtrC t) = inOutT' (typeDat t) where
     exp1 = case purity1 of Pure -> [| F.new . $(hs2c) |] ; Monadic -> hs2c
     exp2 = case purity2 of Pure -> [| return . $(c2hs) |] ; Monadic -> c2hs
 
-convert :: CTypeSpecifier a -> TypeC
-convert (CVoidType _) = VoidC
+convert :: [String] -> CTypeSpecifier a -> TypeC
+convert _ (CVoidType _) = VoidC
 --CCharType a	 
 --CShortType a	 
-convert (CIntType _) = IntC
+convert _ (CIntType _) = IntC
 --CLongType a	 
-convert (CFloatType _) = FloatC
-convert (CDoubleType _) = DoubleC
+convert _ (CFloatType _) = FloatC
+convert _ (CDoubleType _) = DoubleC
 --CSignedType a	 
 --CUnsigType a	 
 --CBoolType a	 
 --CComplexType a
-convert (CTypeDef ident _) = try 
-  [ (s `elem` ["cublasHandle_t", "cusparseHybMat_t", "cusparseHandle_t", "cusparseMatDescr_t", "cusparseSolveAnalysisInfo_t", "cudaStream_t", "csrsv2Info_t", "csric02Info_t", "csrilu02Info_t", "bsrsv2Info_t", "bsric02Info_t", "bsrilu02Info_t", "bsrsm2Info_t", "csru2csrInfo_t", "cusparseColorInfo_t", "csrgemm2Info_t" ] , ArbStructC s)
+convert arbstructs (CTypeDef ident _) = try 
+  [ (s `elem` ["cudaStream_t", "cublasHandle_t", "cusparseHandle_t"], ArbStructC s)
+  , (fromMaybe False ((`elem` arbstructs) <$> typedef), ArbStructC (case typedef of Just n -> n))
   , (s=="cuComplex", ComplexC FloatC)
   , (s=="cuDoubleComplex", ComplexC DoubleC)
   , (True, EnumC s) ]
   where
+  typedef = typeDefName ident
   s = identToString ident
-convert _ = VoidC
+convert _ _ = VoidC
 
-convert' :: [CDeclarationSpecifier a] -> TypeC
-convert' (CTypeSpec x:_) = convert x
-convert' (_:xs) = convert' xs
-convert' [] = error "convert': invalid CDeclarationSpecifier list"
+convert' :: [String] -> [CDeclarationSpecifier a] -> TypeC
+convert' arbstructs specs = case specs of
+  (CTypeSpec x:_) -> convert arbstructs x
+  (_:xs) -> convert' arbstructs xs
+  [] -> error "convert': invalid CDeclarationSpecifier list"
 
-typeOf :: (TypeC -> Q Type) -> CDeclaration a -> Q Type
-typeOf proj (CDecl basetype [(Just (CDeclr (Just ident) ptrs _ _ _), _, _)] _) = 
-  foldr f (proj $ convert' basetype) ptrs
+typeOf :: [String] -> (TypeC -> Q Type) -> CDeclaration a -> Q Type
+typeOf arbstructs proj (CDecl basetype [(Just (CDeclr (Just ident) ptrs _ _ _), _, _)] _) = 
+  foldr f (proj $ convert' arbstructs basetype) ptrs
   where
   f (CPtrDeclr _ _) b = [t| F.Ptr $(b) |]
   f _ _ = error "haven't implemented other things"
@@ -218,11 +214,11 @@ pointerification (CDecl _ [(Just (CDeclr _ ptrs _ _ _), _, _)] _) = foldr (.) id
   f (CArrDeclr _ _ _) = ArrC
   f _ = id --possible there are other things that should be here?
 
-baseType :: CDeclaration a -> TypeC
-baseType (CDecl basetype _ _) = convert' basetype
+baseType :: [String] -> CDeclaration a -> TypeC
+baseType arbstructs (CDecl basetype _ _) = convert' arbstructs basetype
 
-cType :: CDeclaration a -> TypeC
-cType d = (pointerification d) (baseType d)
+cType :: [String] -> CDeclaration a -> TypeC
+cType arbstructs d = (pointerification d) (baseType arbstructs d)
   
 
 typeInfo :: String -> CVar -> TypeInfo
@@ -256,7 +252,7 @@ outMarshall x = ([| return . fst |], const (hst $ typeDat x))
 
 
 createf' :: (String, CFunction) -> Q [Dec]
-createf' (foreignname, cf@(fname, rettype, args)) = do
+createf' (foreignname, cf@(CFunction fname rettype args)) = do
   ins <- mapM (safeName "_in") args
   toCs <- mapM (safeName "_out") args
   (outstatements, (outtypes, outs)) <- second (unzip . filterMaybes) . unzip <$> collect (zip3 args argsTI toCs)
@@ -298,9 +294,7 @@ createf' (foreignname, cf@(fname, rettype, args)) = do
   collecti _ = []
 
 
-cublasFile, cusparseFile :: FilePath
-cublasFile = CUDA_INCLUDE_DIR </> "cublas_v2.h"
-cusparseFile = CUDA_INCLUDE_DIR </> "cusparse_v2.h"
+
 
 
 filterMaybes :: [Maybe a] -> [a]
@@ -314,7 +308,7 @@ funname (CDecl _ [(Just (CDeclr (Just ident ) _ _ _ _), _, _)] _) = identToStrin
 funname _ = "Weird!"
 
 desired :: String -> CFunction -> Bool
-desired prefix (name, _, _) = 
+desired prefix (CFunction name _ _) = 
     any (`isPrefixOf` name) (map (prefix ++) ("Get" : map (:[]) "SDCZX"))
     && not ("color" `isSuffixOf` name)
 
@@ -331,28 +325,25 @@ funDecl :: CDeclaration a -> Maybe (CDeclarator a)
 funDecl (CDecl _ [(Just declarator, _, _)] _) = Just declarator
 funDecl _ = Nothing
 
-maybeFunction :: CDeclaration a -> Maybe (CFunction)
-maybeFunction d@(CDecl returnType _ _) = do
+maybeFunction :: Show a => [String] -> CDeclaration a -> Maybe (CFunction)
+maybeFunction arbstructs d@(CDecl returnType _ _) = do
   args <- funArgs =<< funDecl d
   retName <- declName d
   argNames <- mapM declName args
-  let argTypes = map cType args
-  return (retName, convert' returnType, zip argNames argTypes )
+  let argTypes = map (cType arbstructs) args
+  return $ CFunction retName (convert' arbstructs returnType) (zip argNames argTypes)
 
-maybeExternalDec :: CExternalDeclaration a -> Maybe (CDeclaration a)
-maybeExternalDec (CDeclExt d) = Just d
-maybeExternalDec _ = Nothing
 
 type CVar = (String, TypeC)
-type CFunction = ( String , TypeC , [CVar] )
+data CFunction = CFunction
+  { cfName  :: String
+  , cfRetTy :: TypeC
+  , cfArgs  :: [CVar] }
 
-getFunctions :: FilePath -> IO [CFunction]
-getFunctions fp = do
-  Right (CTranslUnit xs _) <- parseCFile (newGCC "/usr/bin/gcc") Nothing [] fp
-  return $ mapMaybe (maybeExternalDec >=> maybeFunction) xs
+
 
 createf :: FilePath -> CFunction -> Q Dec
-createf fp (name, ret, args) = 
+createf fp (CFunction name ret args) = 
   forImpD cCall safe{-unsafe-} (fp ++ ' ':name) (mkName name) cFunType
   where
   cFunType = foldr f z (map (ct . typeDat . snd) args)
@@ -362,14 +353,13 @@ createf fp (name, ret, args) =
 
 sharedDecs :: String -> [CFunction] -> [(String, [(String, CFunction)])]
 sharedDecs prefix xs = xs'' where
-  g x@(s,ret,args) = do
+  g x@(CFunction s ret args) = do
     newname <- dropc <$> goodName prefix s
-    return (s, (newname, ret, args))
+    return (s, (CFunction newname ret args))
   xs' = mapMaybe g xs
-  fst3 (s,_,_) = s
   dropc name = if last name == 'c' then init name else name --for dot, ger, ...
-  xs'' = map ( (fst3 . snd . head) &&& id) .
-    filter sdFilter . groupWith (tail . fst3 . snd) $ xs'
+  xs'' = map ( (cfName . snd . head) &&& id) .
+    filter sdFilter . groupWith (tail . cfName . snd) $ xs'
   sdFilter xs = length xs == 4 && not (
     any (`isInfixOf` (fst (head xs))) ["rot_v2", "rotg_v2", "hybsv_analysis", "numericBoost"] )
 
@@ -384,15 +374,17 @@ mkClass (p:prefix) xs = classD (return []) className [PlainTV typeName] [] decs 
   mkPhony x = let t' = PhonyC typeName in
     case x of DoubleC -> t'; FloatC -> t'; ComplexC _ -> t'; y -> y
   phonifyF :: CFunction -> CFunction
-  phonifyF (name, ret, args) = (name, mkPhony ret, map (second mkPhony) args)
-  f cfunc@(name, _, _) = sigD (mkName (tail name)) (funType $ functionTypeInfo cfunc)
+  phonifyF (CFunction name ret args) =
+    CFunction name (mkPhony ret) (map (second mkPhony) args)
+  f cfunc@(CFunction name _ _) = 
+    sigD (mkName (tail name)) (funType $ functionTypeInfo cfunc)
 
 mkClassInstances :: String -> [(String, [(String,CFunction)])] -> [Q Dec]
 mkClassInstances (p:prefix) xs = map (\c -> makeInstance c $ map (f c) xs) "sdcz" where
   makeInstance c decs = instanceD (return []) classSig (decs) where
     classSig = appT (return . ConT $ mkName (toUpper p:prefix)) (ct . typeDat $ typeMap c)
-  f c (_, funcs) = (!! 1) <$> createf' (foreignn, (name, ret, args)) where
-    [(foreignn,((_:name), ret, args))] = filter (\(_,((s:_),_,_))-> s==c) funcs
+  f c (_, funcs) = (!! 1) <$> createf' (foreignn, CFunction name ret args) where
+    [(foreignn,CFunction (_:name) ret args)] = filter (\(_,CFunction (s:_) _ _)-> s==c) funcs
 
 typeMap :: Char -> TypeC
 typeMap 'c' = ComplexC FloatC
@@ -410,17 +402,18 @@ makeFFIDecs :: String -> FilePath -> IO (Q [Dec])
 makeFFIDecs str fp = sequence . map (createf fp) <$> getDesiredFunctions str fp
 
 getDesiredFunctions :: String -> FilePath -> IO [CFunction]
-getDesiredFunctions str fp = 
-  nubBy ((==) `on` functionName) . filter (desired str) <$> getFunctions fp
-  where
-  functionName (fname, rettype, args) = fname
+getDesiredFunctions str fp = do
+  decls <- getExternalDecls fp
+  let arbstructs = mapMaybe maybeTypeDef decls
+  return . nubBy ((==) `on` cfName) . filter (desired str) $ 
+    mapMaybe (maybeFunction arbstructs) decls
 
 makeAllFuncs :: String -> FilePath -> IO (Q [Dec])
 makeAllFuncs str fp = fmap concat . sequence . mapMaybe (fmap createf' . alter)
   <$> getDesiredFunctions str fp where
-  alter (fname, rettype, args) = do
+  alter (CFunction fname rettype args) = do
     newname <- goodName str fname
-    return (fname, (newname, rettype, args))
+    return (fname, CFunction newname rettype args)
 
 goodName :: String -> String -> Maybe String
 goodName prefix = f where
@@ -431,9 +424,6 @@ goodName prefix = f where
     (pre, name) = splitAt l str
     (name', v2) = splitAt (length name - length v2suff) name
     (x : xs) = if v2 == v2suff then name' else name
-
-doIO :: IO (Q [a]) -> Q [a]
-doIO = join . runIO
 
 inTypes :: [TypeInfo] -> [Q Type]
 inTypes = mapMaybe f where
@@ -446,7 +436,7 @@ outTypes = mapMaybe f where
   f _ = Nothing
 
 functionTypeInfo :: CFunction -> [TypeInfo]
-functionTypeInfo (fname, ret, args) = map (typeInfo fname) args
+functionTypeInfo (CFunction fname ret args) = map (typeInfo fname) args
 
 funTypeMod :: (Q Type -> Q Type) -> [TypeInfo] -> Q Type
 funTypeMod f args = foldr arrow z ins where
