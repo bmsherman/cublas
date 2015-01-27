@@ -39,6 +39,9 @@ library
                         Foreign.CUDA.Cusparse.Error
                         Foreign.CUDA.Cusparse.Types
                         Foreign.CUDA.Cusparse.FFI
+                        Foreign.CUDA.CuFFT.Error
+                        Foreign.CUDA.CuFFT.Types
+                        Foreign.CUDA.CuFFT.FFI
 
   other-modules:        Foreign.CUDA.Cublas.TH
        

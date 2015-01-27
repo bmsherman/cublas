@@ -19,6 +19,8 @@ import Language.Haskell.TH as TH
 
 import System.FilePath.Posix ((</>))
 
+import Debug.Trace
+
 cublasFile, cusparseFile, cufftFile :: FilePath
 cublasFile = CUDA_INCLUDE_DIR </> "cublas_v2.h"
 cusparseFile = CUDA_INCLUDE_DIR </> "cusparse_v2.h"
@@ -40,10 +42,11 @@ stripSuffix suffix string =
 typeDefName :: Ident -> Maybe String
 typeDefName ident = do
   guard (not ("cuda" `isPrefixOf` tName))
-  n <- stripSuffix "_t" tName
+  let n = removeSuff "_t" tName
   Just $ (remove "cufft" . remove "cublas" . remove "cusparse") n
   where
   remove prefix name = fromMaybe name (stripPrefix prefix name)
+  removeSuff suffix name = fromMaybe name (stripSuffix suffix name)
   tName = identToString ident
 
 maybeTypeDef :: CDeclaration a -> Maybe String
@@ -51,11 +54,16 @@ maybeTypeDef (CDecl [CStorageSpec (CTypedef _)
   , CTypeSpec (CSUType (CStruct CStructTag (Just structName) _ _ _) _)]
   [(Just (CDeclr (Just typedefName) [CPtrDeclr [] _] Nothing [] _)
     ,Nothing,Nothing)] _) = typeDefName typedefName
+-- the following case is for CuFFT Handle
+maybeTypeDef d@(CDecl [CStorageSpec (CTypedef _)
+  , CTypeSpec (CIntType _)]
+  [(Just (CDeclr (Just typedefName) [] Nothing [] _)
+    ,Nothing,Nothing)] _) = traceShow (fmap (const ()) d) True `seq` typeDefName typedefName
 maybeTypeDef _ = Nothing
 
 maybeEnum ::  CDeclaration a -> Maybe EnumT
 maybeEnum (CDecl [CStorageSpec (CTypedef _)
-  , CTypeSpec (CEnumType (CEnum Nothing (Just constrs) _ _) _)]
+  , CTypeSpec (CEnumType (CEnum enumName (Just constrs) _ _) _)]
   [(Just (CDeclr (Just typedefName) _ Nothing [] _)
     ,Nothing,Nothing)] _) = do
       constructors <- mapM f constrs
@@ -68,7 +76,7 @@ maybeEnum _ = Nothing
 
 modifyEnumNames :: String -> EnumT -> Maybe EnumT
 modifyEnumNames prefix (EnumT tyName constrs) = do
-  tyName' <- stripPrefix prefix =<< stripSuffix "_t" tyName
+  tyName' <- stripPrefix prefix (remove "_t" tyName)
   constrs' <- forM constrs $ \(n, v) -> do
     n' <- stripPrefix (upperFirst prefix) (underscoreToCase n)
     return (sideAdjustment n', v)
@@ -77,6 +85,7 @@ modifyEnumNames prefix (EnumT tyName constrs) = do
         vs
   return $ EnumT tyName' constrs''
   where
+  remove suffix name = fromMaybe name (stripSuffix suffix name)
   safeSplit (x : xs) = Just (x, xs)
   safeSplit _ = Nothing
   stripCommonPrefix :: Eq a => [a] -> [[a]] -> [[a]]

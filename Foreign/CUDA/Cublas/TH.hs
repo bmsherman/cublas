@@ -38,6 +38,7 @@ import qualified Foreign.CUDA.Cublas.Types as BL
 import qualified Foreign.CUDA.Cusparse.Types as SP
 import qualified Foreign.CUDA.Cublas.Error as BL
 import qualified Foreign.CUDA.Cusparse.Error as SP
+import qualified Foreign.CUDA.CuFFT.Error as FFT
 
 try :: [(Bool, a)] -> a
 try ((p,y):conds) = if p then y else try conds
@@ -87,7 +88,7 @@ typeDat (EnumC str) = case ty of
   Nothing -> error ("typeDat.EnumC : Missing type: " ++ str)
   where
   ty = do
-    str' <- stripSuffix "_t" str
+    let str' = fromMaybe str (stripSuffix "_t" str)
     n <- stripPrefix "cublas"   str'
      <|> stripPrefix "cusparse" str'
      <|> stripPrefix "cufft" str'
@@ -175,8 +176,8 @@ convert _ (CDoubleType _) = DoubleC
 convert arbstructs (CTypeDef ident _) = try 
   [ (s `elem` ["cudaStream_t"], ArbStructC s)
   , (fromMaybe False ((`elem` arbstructs) <$> typedef), ArbStructC (case typedef of Just n -> n))
-  , (s=="cuComplex", ComplexC FloatC)
-  , (s=="cuDoubleComplex", ComplexC DoubleC)
+  , (s `elem` ["cuComplex", "cufftComplex"], ComplexC FloatC)
+  , (s `elem` ["cuDoubleComplex", "cufftDoubleComplex"], ComplexC DoubleC)
   , (s=="size_t", SizeTC)
   , (True, EnumC s) ]
   where
@@ -235,6 +236,7 @@ declName _ = Nothing
 outMarshall :: TypeC -> (Q Exp, Q Type -> Q Type)
 outMarshall (EnumC "cublasStatus_t") = ([| BL.resultIfOk |], id)
 outMarshall (EnumC "cusparseStatus_t") = ([| SP.resultIfOk |], id)
+outMarshall (EnumC "cufftResult") = ([| FFT.resultIfOk |], id)
 outMarshall VoidC = ([| return . snd |], id)
 outMarshall x = ([| return . fst |], const (hst $ typeDat x))
 
@@ -297,6 +299,7 @@ funname (CDecl _ [(Just (CDeclr (Just ident ) _ _ _ _), _, _)] _) = identToStrin
 funname _ = "Weird!"
 
 desired :: String -> CFunction -> Bool
+desired "cufft" (CFunction name _ _) = "cufft" `isPrefixOf` name
 desired prefix (CFunction name _ _) = 
     any (`isPrefixOf` name) (map (prefix ++) ("Get" : map (:[]) "SDCZX"))
     && not ("color" `isSuffixOf` name)
@@ -395,6 +398,8 @@ getDesiredFunctions :: String -> FilePath -> IO [CFunction]
 getDesiredFunctions str fp = do
   decls <- getExternalDecls fp
   let arbstructs = mapMaybe maybeTypeDef decls
+  putStrLn "ArbStructs:"
+  print arbstructs
   return . nubBy ((==) `on` cfName) . filter (desired str) $ 
     mapMaybe (maybeFunction arbstructs) decls
 
