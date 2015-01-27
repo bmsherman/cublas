@@ -19,9 +19,10 @@ import Language.Haskell.TH as TH
 
 import System.FilePath.Posix ((</>))
 
-cublasFile, cusparseFile :: FilePath
+cublasFile, cusparseFile, cufftFile :: FilePath
 cublasFile = CUDA_INCLUDE_DIR </> "cublas_v2.h"
 cusparseFile = CUDA_INCLUDE_DIR </> "cusparse_v2.h"
+cufftFile = CUDA_INCLUDE_DIR </> "cufft.h"
 
 maybeExternalDec :: CExternalDeclaration a -> Maybe (CDeclaration a)
 maybeExternalDec (CDeclExt d) = Just d
@@ -40,7 +41,7 @@ typeDefName :: Ident -> Maybe String
 typeDefName ident = do
   guard (not ("cuda" `isPrefixOf` tName))
   n <- stripSuffix "_t" tName
-  Just $ remove "cublas" (remove "cusparse" n)
+  Just $ (remove "cufft" . remove "cublas" . remove "cusparse") n
   where
   remove prefix name = fromMaybe name (stripPrefix prefix name)
   tName = identToString ident

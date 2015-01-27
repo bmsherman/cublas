@@ -59,6 +59,7 @@ data ExpType = Pure | Monadic
 data TypeC = VoidC | IntC | FloatC | DoubleC | EnumC String 
            | ComplexC TypeC | ArbStructC String | PtrC TypeC | PhonyC TH.Name
            | ArrC TypeC
+           | SizeTC
            deriving (Eq, Show)
 
 prim :: Q Type -> Q Type -> Q Exp -> Q Exp -> TypeDat
@@ -73,39 +74,26 @@ bothc f (a :+ b) = f a :+ f b
 typeDat :: TypeC -> TypeDat
 typeDat (PhonyC n)  = simple (varT n)
 typeDat VoidC       = simple [t| () |] 
+typeDat SizeTC      = simple [t| C.CSize |] 
 typeDat (PtrC t)    = prim [t| F.Ptr $(ctype) |] [t| FC.DevicePtr $(ctype) |] [| FC.DevicePtr |]       [| FC.useDevicePtr |] where
   ctype = ct (typeDat t)
 typeDat (ArrC t)    = typeDat (PtrC t)
 typeDat IntC        = prim [t| C.CInt |]    [t| Int |]    [| fromIntegral |]          [| fromIntegral |]
 typeDat FloatC      = simple [t| C.CFloat |]
 typeDat DoubleC     = simple [t| C.CDouble |]
-typeDat (EnumC str) = prim [t| C.CInt |] x [| toEnum . fromIntegral |] [| fromIntegral . fromEnum |] where
-  x = case str of
-    "cublasStatus_t" -> [t| BL.Status |]
-    "cublasOperation_t" -> [t| BL.Operation |]
-    "cublasSideMode_t" -> [t| BL.SideMode |]
-    "cublasFillMode_t" -> [t| BL.FillMode |]
-    "cublasPointerMode_t" -> [t| BL.PointerMode |]
-    "cublasAtomicsMode_t" -> [t| BL.AtomicsMode |]
-    "cublasDiagType_t" -> [t| BL.DiagType |]
-
-    "cusparseStatus_t" -> [t| SP.Status |]
-    "cusparseOperation_t" -> [t| SP.Operation |]
-    "cusparseDirection_t" -> [t| SP.Direction |]
-    "cusparseHybPartition_t" -> [t| SP.HybPartition |]
-    "cusparseFillMode_t" -> [t| SP.FillMode |]
-    "cusparsePointerMode_t" -> [t| SP.PointerMode |]
-    "cusparseDiagType_t" -> [t| SP.DiagType |]
-    "cusparseIndexBase_t" -> [t| SP.IndexBase |]
-    "cusparseAction_t" -> [t| SP.Action |]
-    "cusparseMatrixType_t" -> [t| SP.MatrixType |]
-    "cusparseSolvePolicy_t" -> [t| SP.SolvePolicy |]
-
-    otherwise -> error ("typeDat.EnumC : Missing type: " ++ str)
+typeDat (EnumC str) = case ty of
+  Just t -> prim [t| C.CInt |] t
+    [| toEnum . fromIntegral |] [| fromIntegral . fromEnum |]
+  Nothing -> error ("typeDat.EnumC : Missing type: " ++ str)
+  where
+  ty = do
+    str' <- stripSuffix "_t" str
+    n <- stripPrefix "cublas"   str'
+     <|> stripPrefix "cusparse" str'
+     <|> stripPrefix "cufft" str'
+    return $ conT (mkName n)
 typeDat (ArbStructC str) = case str of
   "cudaStream_t" -> prim [t| F.Ptr () |] [t| FC.Stream |] [| FC.Stream |] [| FC.useStream |]
-  "cublasHandle_t" -> prim [t| F.Ptr () |] [t| BL.Handle |] [| BL.Handle |]  [| BL.useHandle |]
-  "cusparseHandle_t" -> prim [t| F.Ptr () |] [t| SP.Handle |] [| SP.Handle |]  [| SP.useHandle |]
   _ -> let tyName = typeDefTyName str; useName = typeDefUseName str in
        prim [t| F.Ptr () |] (conT tyName) (conE tyName) (varE useName)
 typeDat (ComplexC t) = prim
@@ -185,10 +173,11 @@ convert _ (CDoubleType _) = DoubleC
 --CBoolType a	 
 --CComplexType a
 convert arbstructs (CTypeDef ident _) = try 
-  [ (s `elem` ["cudaStream_t", "cublasHandle_t", "cusparseHandle_t"], ArbStructC s)
+  [ (s `elem` ["cudaStream_t"], ArbStructC s)
   , (fromMaybe False ((`elem` arbstructs) <$> typedef), ArbStructC (case typedef of Just n -> n))
   , (s=="cuComplex", ComplexC FloatC)
   , (s=="cuDoubleComplex", ComplexC DoubleC)
+  , (s=="size_t", SizeTC)
   , (True, EnumC s) ]
   where
   typedef = typeDefName ident
@@ -339,6 +328,7 @@ data CFunction = CFunction
   { cfName  :: String
   , cfRetTy :: TypeC
   , cfArgs  :: [CVar] }
+  deriving Show
 
 
 
