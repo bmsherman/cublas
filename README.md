@@ -1,9 +1,10 @@
 cublas
 ======
 
-This Haskell library provides FFI bindings for both the
-[CUBLAS](https://developer.nvidia.com/cuBLAS) and
-[CUSPARSE](https://developer.nvidia.com/cuSPARSE)
+This Haskell library provides FFI bindings for the
+[CUBLAS](https://developer.nvidia.com/cuBLAS),
+[CUSPARSE](https://developer.nvidia.com/cuSPARSE), and
+[CuFFT](https://developer.nvidia.com/cuFFT)
 CUDA C libraries. Template Haskell and
 [language-c](http://hackage.haskell.org/package/language-c) are used to 
 automatically parse the C headers for the libraries and create the 
