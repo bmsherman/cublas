@@ -46,11 +46,11 @@ library
   other-modules:        Foreign.CUDA.Cublas.TH
        
 
-  build-depends:        base >=4.4 && <4.8,
+  build-depends:        base >=4.4 && <4.9,
                         cuda >=0.4.1 && <0.7,
-                        filepath >=1.3 && <1.4,
+                        filepath >=1.3 && <1.5,
                         language-c >=0.4.2 && <0.5,
-                        template-haskell >=2.7 && <2.10,
+                        template-haskell >=2.7 && <2.11,
                         storable-complex >=0.2.1 && <0.3
   other-extensions:     ForeignFunctionInterface, TemplateHaskell, CPP
 

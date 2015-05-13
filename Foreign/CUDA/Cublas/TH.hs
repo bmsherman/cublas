@@ -14,7 +14,11 @@ import Control.Monad ((>=>), void)
 
 import GHC.Exts (groupWith)
 
-import Language.Haskell.TH as TH
+import Language.Haskell.TH as TH (Q, Type (ConT), Name, varT, conT, mkName
+  , conE, varE, Exp, newName, bindS, varP, tupE, doE, noBindS
+  , Dec (FunD), Clause (Clause), Pat (VarP), Body (NormalB)
+  , sigD, appE, forImpD, safe, cCall
+  , TyVarBndr (PlainTV), instanceD, appT, tupleT, classD)
 import Language.C
 import Language.C.System.GCC
 

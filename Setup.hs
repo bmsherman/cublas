@@ -12,7 +12,7 @@ import Distribution.Simple.PreProcess           hiding (ppC2hs)
 
 import Control.Exception
 import Control.Monad
-import System.Exit
+import System.Exit (ExitCode (ExitSuccess, ExitFailure))
 import System.FilePath
 import System.Directory
 import System.Environment
