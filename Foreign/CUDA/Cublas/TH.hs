@@ -21,7 +21,7 @@ import Language.C.System.GCC
 import Data.List (isInfixOf, isPrefixOf, isSuffixOf, nubBy, stripPrefix)
 import Data.Char (toLower, toUpper)
 import Data.Function (on)
-import Data.Maybe (mapMaybe, fromMaybe)
+import Data.Maybe (mapMaybe, fromMaybe, catMaybes)
 
 import Debug.Trace
 import qualified Foreign.C.Types as C
@@ -246,7 +246,7 @@ createf' :: (String, CFunction) -> Q [Dec]
 createf' (foreignname, cf@(CFunction fname rettype args)) = do
   ins <- mapM (safeName "_in") args
   toCs <- mapM (safeName "_out") args
-  (outstatements, (outtypes, outs)) <- second (unzip . filterMaybes) . unzip <$> collect (zip3 args argsTI toCs)
+  (outstatements, (outtypes, outs)) <- second (unzip . catMaybes) . unzip <$> collect (zip3 args argsTI toCs)
   let instatements = map inMarsh (zip3 argsTI ins toCs)
   ret <- newName "res"
   let runstatement = bindS (varP ret) (foldl f z toCs)
@@ -285,13 +285,6 @@ createf' (foreignname, cf@(CFunction fname rettype args)) = do
   collecti _ = []
 
 
-
-
-
-filterMaybes :: [Maybe a] -> [a]
-filterMaybes [] = []
-filterMaybes (Just x:xs) = x : filterMaybes xs
-filterMaybes (Nothing:xs) = filterMaybes xs
 
 
 funname :: CDeclaration a -> String
